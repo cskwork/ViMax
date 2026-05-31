@@ -9,8 +9,9 @@ import json
 from moviepy import VideoFileClip, concatenate_videoclips
 import yaml
 from langchain.chat_models import init_chat_model
+
+from tools.chat_model_factory import build_chat_model
 from tools.render_backend import RenderBackend
-from utils.provider_presets import resolve_chat_model_config
 
 
 class Idea2VideoPipeline:
@@ -38,8 +39,7 @@ class Idea2VideoPipeline:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
-        chat_model_args = resolve_chat_model_config(config["chat_model"]["init_args"])
-        chat_model = init_chat_model(**chat_model_args)
+        chat_model = build_chat_model(config["chat_model"], init_chat_model)
         backend = RenderBackend.from_config(config)
 
         return cls(

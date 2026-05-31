@@ -13,18 +13,20 @@ import importlib
 import os
 import sys
 import types
+import tempfile
+
 import unittest
 from unittest.mock import patch, MagicMock
 
 # ---- stub heavy deps before any project imports ----
 _STUB_MODULES = [
     "moviepy", "cv2", "scenedetect", "scenedetect.detectors",
-    "PIL", "PIL.Image",
     "faiss",
     "google", "google.genai", "google.genai.types", "google.genai.errors",
     "langchain_community", "langchain_community.vectorstores",
     "langchain_community.vectorstores.FAISS",
 ]
+
 _saved = {}
 for _mod in _STUB_MODULES:
     _saved[_mod] = sys.modules.get(_mod)
@@ -152,8 +154,32 @@ class TestPipelineInitFromConfig(unittest.TestCase):
         mock_init.return_value = mock_model
         mock_backend.return_value = MagicMock(image_generator=MagicMock(), video_generator=MagicMock())
 
-        from pipelines.idea2video_pipeline import Idea2VideoPipeline
-        pipeline = Idea2VideoPipeline.init_from_config("configs/idea2video.yaml")
+        config = """
+chat_model:
+  init_args:
+    model: google/gemini-2.5-flash-lite-preview-09-2025
+    model_provider: openai
+    api_key: or-key
+    base_url: https://openrouter.ai/api/v1
+image_generator:
+  class_path: tools.ImageGeneratorNanobananaGoogleAPI
+  init_args:
+    api_key: test
+video_generator:
+  class_path: tools.VideoGeneratorVeoGoogleAPI
+  init_args:
+    api_key: test
+working_dir: .working_dir/test
+"""
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(config)
+            config_path = f.name
+
+        try:
+            from pipelines.idea2video_pipeline import Idea2VideoPipeline
+            pipeline = Idea2VideoPipeline.init_from_config(config_path)
+        finally:
+            os.unlink(config_path)
 
         mock_init.assert_called_once()
         call_kwargs = mock_init.call_args[1]

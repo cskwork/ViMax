@@ -12,3 +12,7 @@ wheels/
 # working directory
 .working_dir/
 .test/
+
+# Playwright Agent CLI session state (snapshots may contain session content)
+.playwright-cli/
+.playwright-mcp/

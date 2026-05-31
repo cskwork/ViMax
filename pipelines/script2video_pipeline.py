@@ -11,8 +11,10 @@ from agents import *
 import yaml
 from interfaces import *
 from langchain.chat_models import init_chat_model
+
+from tools.chat_model_factory import build_chat_model
 from tools.render_backend import RenderBackend
-from utils.provider_presets import resolve_chat_model_config
+
 
 class Script2VideoPipeline:
 
@@ -50,8 +52,7 @@ class Script2VideoPipeline:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
-        chat_model_args = resolve_chat_model_config(config["chat_model"]["init_args"])
-        chat_model = init_chat_model(**chat_model_args)
+        chat_model = build_chat_model(config["chat_model"], init_chat_model)
         backend = RenderBackend.from_config(config)
 
         return cls(
@@ -548,7 +549,7 @@ class Script2VideoPipeline:
                 script=script,
                 characters=characters,
                 user_requirement=user_requirement,
-                retry_timeout=150,
+                retry_timeout=600,
             )
             with open(storyboard_path, 'w', encoding='utf-8') as f:
                 json.dump([shot.model_dump() for shot in storyboard], f, ensure_ascii=False, indent=4)
@@ -591,7 +592,7 @@ class Script2VideoPipeline:
             shot_description = await self.storyboard_artist.decompose_visual_description(
                 shot_brief_desc=shot_brief_description,
                 characters=characters,
-                retry_timeout=120,
+                retry_timeout=600,
             )
             with open(shot_description_path, 'w', encoding='utf-8') as f:
                 json.dump(shot_description.model_dump(), f, ensure_ascii=False, indent=4)

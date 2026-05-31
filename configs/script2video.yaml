@@ -1,33 +1,33 @@
 chat_model:
+  class_path: tools.ChatModelClaudeCodeCLI
   init_args:
-    model: google/gemini-2.5-flash-lite-preview-09-2025
-    model_provider: openai
-    api_key:
-    base_url: https://openrouter.ai/api/v1
-  # Rate limits for chat model API calls
-  # Set to null to disable rate limiting for this service
-  max_requests_per_minute: null
-  max_requests_per_day: null
-
+    command: claude
+    model: sonnet
+    timeout_seconds: 600
+    disable_tools: true
 
 image_generator:
-  class_path: tools.ImageGeneratorNanobananaGoogleAPI
+  class_path: tools.ImageGeneratorCodexCLI
   init_args:
-    api_key:
-  # Rate limits for image generation API calls
-  # Set to null to disable rate limiting for this service
+    command: codex
+    work_dir: .working_dir/codex_image_gen
+    timeout_seconds: 1200
+  # Rate limits for image generation CLI calls.
+  # Set to null to disable rate limiting for this service.
   max_requests_per_minute: 2
   max_requests_per_day: 50
-
 
 video_generator:
-  class_path: tools.VideoGeneratorVeoGoogleAPI
+  class_path: tools.VideoGeneratorGeminiOmniCLI
   init_args:
-    api_key:
-  # Rate limits for video generation API calls
-  # Set to null to disable rate limiting for this service
+    command: gemini
+    # Gemini CLI's default logged-in model is used; the prompt targets Gemini app Gemini Omni video generation.
+    work_dir: .working_dir/gemini_omni_video_gen
+    timeout_seconds: 3600
+    yolo: true
+  # Rate limits for video generation CLI calls.
+  # Set to null to disable rate limiting for this service.
   max_requests_per_minute: 2
-  max_requests_per_day: 50
-
+  max_requests_per_day: 10
 
 working_dir: .working_dir/script2video

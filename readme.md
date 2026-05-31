@@ -402,26 +402,35 @@ uv sync
 
 ### 🎯 **Usage**
 main_idea2video.py is used to convert your ideas into videos.
-You need to configure the model and API key information in the configs/idea2video.yaml file, including three parts—the chat model, the image generator, and the video generator, as shown below
+This fork's default configs use local, logged-in CLIs instead of API keys:
+
 ```yaml
 chat_model:
+  class_path: tools.ChatModelClaudeCodeCLI
   init_args:
-    model: google/gemini-2.5-flash-lite-preview-09-2025
-    model_provider: openai
-    api_key: <YOUR_API_KEY>
-    base_url: https://openrouter.ai/api/v1
+    command: claude
+    model: sonnet
 
 image_generator:
-  class_path: tools.ImageGeneratorNanobananaGoogleAPI
+  class_path: tools.ImageGeneratorCodexCLI
   init_args:
-    api_key: <YOUR_API_KEY>
+    command: codex
 
 video_generator:
-  class_path: tools.VideoGeneratorVeoGoogleAPI
+  class_path: tools.VideoGeneratorGeminiOmniCLI
   init_args:
-    api_key: <YOUR_API_KEY>
+    command: gemini
+    # Gemini CLI's default logged-in model is used; the prompt targets Gemini app Gemini Omni video generation.
 
 working_dir: .working_dir/idea2video
+```
+
+Verify the CLIs are installed and logged in before running ViMax:
+
+```bash
+claude -p "Reply OK"
+codex exec --skip-git-repo-check "Reply OK"
+gemini -p "Reply OK"
 ```
 
 Then, provide a simple yet thoughtful idea and the corresponding creative requirements in main_idea2video.py.

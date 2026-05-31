@@ -139,9 +139,16 @@ class ReferenceImageSelector:
     def __init__(
         self,
         chat_model,
+        multimodal_chat_model=None,
     ):
 
         self.chat_model = chat_model
+        # Step 2 needs real vision; the default text-only CLI chat model cannot see
+        # images, so fall back to a Codex-backed vision model for that step.
+        if multimodal_chat_model is None:
+            from tools.chat_model_codex_cli import ChatModelCodexCLI
+            multimodal_chat_model = ChatModelCodexCLI()
+        self.multimodal_chat_model = multimodal_chat_model
 
 
     @retry(
@@ -208,10 +215,10 @@ class ReferenceImageSelector:
             HumanMessage(content=human_content)
         ]
 
-        chain = self.chat_model | parser
+        chain = self.multimodal_chat_model | parser
 
         try:
-            response = await chain.ainvoke(messages)        
+            response = await chain.ainvoke(messages)
             reference_image_path_and_text_pairs = [filtered_image_path_and_text_pairs[i] for i in response.ref_image_indices]
             return {
                 "reference_image_path_and_text_pairs": reference_image_path_and_text_pairs,
