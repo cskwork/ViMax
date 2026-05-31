@@ -171,6 +171,28 @@ class TestConfigYAMLLoading(unittest.TestCase):
         self.assertEqual(config["chat_model"]["init_args"]["model_provider"], "minimax")
         self.assertEqual(config["chat_model"]["init_args"]["model"], "MiniMax-M2.7")
 
+    def test_idea2video_flow_yaml(self):
+        import yaml
+        path = os.path.join(os.path.dirname(__file__), "..", "configs", "idea2video_flow.yaml")
+        with open(path) as f:
+            config = yaml.safe_load(f)
+        self.assertEqual(config["video_generator"]["init_args"]["surface"], "flow")
+        self.assertIn(
+            "labs.google/fx/ko/tools/flow/project",
+            config["video_generator"]["init_args"]["app_url"],
+        )
+
+    def test_script2video_flow_yaml(self):
+        import yaml
+        path = os.path.join(os.path.dirname(__file__), "..", "configs", "script2video_flow.yaml")
+        with open(path) as f:
+            config = yaml.safe_load(f)
+        self.assertEqual(config["video_generator"]["init_args"]["surface"], "flow")
+        self.assertIn(
+            "labs.google/fx/ko/tools/flow/project",
+            config["video_generator"]["init_args"]["app_url"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

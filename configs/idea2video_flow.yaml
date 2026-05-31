@@ -1,0 +1,31 @@
+chat_model:
+  class_path: tools.ChatModelClaudeCodeCLI
+  init_args:
+    command: claude
+    model: sonnet
+    timeout_seconds: 600
+    disable_tools: true
+
+image_generator:
+  class_path: tools.ImageGeneratorCodexCLI
+  init_args:
+    command: codex
+    work_dir: .working_dir/codex_image_gen
+    timeout_seconds: 1200
+  max_requests_per_minute: 2
+  max_requests_per_day: 50
+
+video_generator:
+  class_path: tools.VideoGeneratorGeminiOmniPlaywright
+  init_args:
+    surface: flow
+    app_url: https://labs.google/fx/ko/tools/flow/project/01bad1c6-8d7a-4567-9deb-47ff1b6cd3c1
+    attach: cdp
+    session: flow
+    work_dir: .working_dir/flow_playwright
+    timeout_seconds: 600
+    poll_interval: 15
+  max_requests_per_minute: 2
+  max_requests_per_day: 30
+
+working_dir: .working_dir/idea2video_flow

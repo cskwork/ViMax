@@ -1,13 +1,12 @@
-"""Video generator backed by Gemini Omni via the Playwright Agent CLI.
+"""Video generator backed by Google video tools via the Playwright Agent CLI.
 
 Replaces the hanging `gemini` CLI backend. Drives the user's already-logged-in
-Chrome (CDP/extension attach) to make a Veo-backed video with Gemini Omni
-(`동영상 만들기`), then downloads the MP4 through the authenticated session.
+Chrome (CDP/extension attach) to make a Veo-backed video with Gemini Omni or
+Google Flow, then downloads the MP4 through the authenticated session.
 
-The browser-driving logic lives in the reusable `gemini-omni-video` skill
-(separate repo). This adapter shells out to that skill's CLI and serializes
-calls, because the pipeline generates shots concurrently but a single Chrome tab
-must be driven one request at a time.
+The browser-driving logic lives in reusable skills. This adapter shells out to a
+skill CLI and serializes calls, because the pipeline generates shots concurrently
+but a single Chrome tab must be driven one request at a time.
 """
 
 from __future__ import annotations
@@ -21,14 +20,40 @@ from uuid import uuid4
 from interfaces.video_output import VideoOutput
 from utils.rate_limiter import RateLimiter
 
-_DEFAULT_SKILL_DIR = os.environ.get(
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_DEFAULT_GEMINI_SKILL_DIR = os.environ.get(
     "GEMINI_OMNI_SKILL_DIR",
     os.path.expanduser("~/.claude/skills/gemini-omni-video"),
 )
+_DEFAULT_FLOW_SKILL_DIR = os.environ.get(
+    "GOOGLE_FLOW_SKILL_DIR",
+    str(_REPO_ROOT / "skills" / "google-flow-video"),
+)
+_DEFAULT_APP_URLS = {
+    "gemini": "https://gemini.google.com/u/1/app?hl=ko",
+    "flow": "https://labs.google/fx/ko/tools/flow",
+}
+_SCRIPT_NAMES = {
+    "gemini": "gemini_omni_cli.py",
+    "flow": "google_flow_cli.py",
+}
+
+
+def _normalize_surface(surface: str) -> str:
+    value = surface.lower().strip()
+    if value not in _SCRIPT_NAMES:
+        raise ValueError(f"Unsupported video Playwright surface: {surface}")
+    return value
+
+
+def _default_skill_dir(surface: str) -> str:
+    if surface == "flow":
+        return _DEFAULT_FLOW_SKILL_DIR
+    return _DEFAULT_GEMINI_SKILL_DIR
 
 
 class VideoGeneratorGeminiOmniPlaywright:
-    """Generate an MP4 with Gemini Omni by driving a logged-in Chrome.
+    """Generate an MP4 through a Google web video surface.
 
     Calls are serialized with an ``asyncio.Lock`` so concurrent shot generation
     does not drive the same browser tab at once.
@@ -36,25 +61,30 @@ class VideoGeneratorGeminiOmniPlaywright:
 
     def __init__(
         self,
-        skill_dir: str = _DEFAULT_SKILL_DIR,
-        app_url: str = "https://gemini.google.com/u/1/app?hl=ko",
+        skill_dir: Optional[str] = None,
+        app_url: Optional[str] = None,
+        surface: str = "gemini",
         attach: str = "cdp",
-        session: str = "gemini",
+        session: Optional[str] = None,
         python_executable: Optional[str] = None,
         work_dir: str = ".working_dir/gemini_omni_playwright",
         timeout_seconds: int = 600,
         poll_interval: int = 15,
         rate_limiter: Optional[RateLimiter] = None,
     ):
-        self.cli_path = Path(skill_dir) / "scripts" / "gemini_omni_cli.py"
+        self.surface = _normalize_surface(surface)
+        resolved_skill_dir = skill_dir or _default_skill_dir(self.surface)
+        self.cli_path = (
+            Path(resolved_skill_dir) / "scripts" / _SCRIPT_NAMES[self.surface]
+        )
         if not self.cli_path.exists():
             raise FileNotFoundError(
-                f"gemini-omni-video skill CLI not found at {self.cli_path}. "
-                "Install it (skill install.sh) or set GEMINI_OMNI_SKILL_DIR."
-            )
-        self.app_url = app_url
+                f"{self.surface} video skill CLI not found at {self.cli_path}. "
+                "Set skill_dir, GEMINI_OMNI_SKILL_DIR, or GOOGLE_FLOW_SKILL_DIR."
+        )
+        self.app_url = app_url or _DEFAULT_APP_URLS[self.surface]
         self.attach = attach
-        self.session = session
+        self.session = session or self.surface
         self.python_executable = python_executable or "python3"
         self.work_dir = work_dir
         self.timeout_seconds = timeout_seconds
@@ -73,13 +103,19 @@ class VideoGeneratorGeminiOmniPlaywright:
     ) -> VideoOutput:
         work_dir = Path(self.work_dir)
         work_dir.mkdir(parents=True, exist_ok=True)
-        output_path = work_dir / f"gemini_omni_{uuid4().hex}.mp4"
+        output_path = work_dir / f"{self.surface}_{uuid4().hex}.mp4"
 
         async with self._lock:
             if self.rate_limiter:
                 await self.rate_limiter.acquire()
 
-            cmd = self._build_command(prompt, reference_image_paths, output_path)
+            cmd = self._build_command(
+                prompt,
+                reference_image_paths,
+                output_path,
+                aspect_ratio,
+                duration,
+            )
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -93,14 +129,14 @@ class VideoGeneratorGeminiOmniPlaywright:
                 proc.kill()
                 self._attached = False
                 raise RuntimeError(
-                    f"Gemini Omni Playwright generation timed out after "
+                    f"{self.surface} Playwright generation timed out after "
                     f"{self.timeout_seconds + 60}s for prompt: {prompt[:80]}"
                 )
 
             if proc.returncode != 0:
                 self._attached = False
                 raise RuntimeError(
-                    "Gemini Omni Playwright generation failed "
+                    f"{self.surface} Playwright generation failed "
                     f"(exit {proc.returncode}).\n"
                     f"stdout: {stdout.decode(errors='ignore').strip()}\n"
                     f"stderr: {stderr.decode(errors='ignore').strip()}"
@@ -110,7 +146,7 @@ class VideoGeneratorGeminiOmniPlaywright:
 
         if not output_path.exists() or output_path.stat().st_size == 0:
             raise RuntimeError(
-                f"Gemini Omni Playwright completed but wrote no video: {output_path}\n"
+                f"{self.surface} Playwright completed but wrote no video: {output_path}\n"
                 f"stdout: {stdout.decode(errors='ignore').strip()}"
             )
 
@@ -121,6 +157,8 @@ class VideoGeneratorGeminiOmniPlaywright:
         prompt: str,
         reference_image_paths: List[str],
         output_path: Path,
+        aspect_ratio: str = "16:9",
+        duration: int = 8,
     ) -> List[str]:
         cmd = [
             self.python_executable,
@@ -134,9 +172,14 @@ class VideoGeneratorGeminiOmniPlaywright:
             "--poll-interval", str(self.poll_interval),
             "--fresh",
         ]
-        # Gemini Omni conditions on a single starting image; use the first frame.
-        if reference_image_paths:
+        if reference_image_paths and self.surface == "flow":
+            for image_path in reference_image_paths:
+                cmd.extend(["--image", image_path])
+        elif reference_image_paths:
             cmd.extend(["--image", reference_image_paths[0]])
+        if self.surface == "flow":
+            cmd.extend(["--aspect-ratio", aspect_ratio])
+            cmd.extend(["--duration", str(duration)])
         if self._attached:
             cmd.append("--no-attach")
         return cmd

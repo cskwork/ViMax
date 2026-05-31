@@ -433,6 +433,12 @@ codex exec --skip-git-repo-check "Reply OK"
 gemini -p "Reply OK"
 ```
 
+For browser-session video generation through Google Flow instead of Gemini
+Omni, use `configs/idea2video_flow.yaml` or `configs/script2video_flow.yaml`.
+Those configs target a Flow project URL with
+`tools.VideoGeneratorGeminiOmniPlaywright` and `surface: flow`, backed by the
+reusable `skills/google-flow-video` Playwright skill.
+
 Then, provide a simple yet thoughtful idea and the corresponding creative requirements in main_idea2video.py.
 ```bash
 idea = \
@@ -502,4 +508,3 @@ style = "Animate Style"
 <p align="center">
   <em> ❤️ Thanks for visiting ✨ ViMax!</em><br><br>
 </p>
-
